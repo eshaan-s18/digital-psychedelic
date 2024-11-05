@@ -102,32 +102,32 @@ EEG = pop_resample(EEG, 256);
 
 
 %% 7. Remove bad channels and apply ASR
-    
-    % Save original EEG data
-    originalEEG = EEG;
-    
-    % Clean Raw Data
-    EEG = pop_clean_rawdata( ...
-        originalEEG, ...
-        'FlatlineCriterion', 5, ...
-        'ChannelCriterion', 0.8, ...
-        'LineNoiseCriterion', 4, ...
-        'Highpass', 'off', ...
-        'BurstCriterion', 20, ...
-        'WindowCriterion', 'off', ...
-        'BurstRejection', 'off', ...
-        'Distance', 'Euclidian');
-    
-    % Creating a field in the EEG struct to store bad channels
-    new_labels = {EEG.chanlocs.labels};
-    org_labels = {originalEEG.chanlocs.labels};
-    [~,ia,~] = intersect(org_labels, new_labels, 'stable');
-    removed_channels = org_labels;
-    removed_channels(ia) = [];
-    EEG.bad_channels = removed_channels;
+
+% Save original EEG data
+originalEEG = EEG;
+
+% Clean Raw Data
+EEG = pop_clean_rawdata( ...
+    originalEEG, ...
+    'FlatlineCriterion', 5, ...
+    'ChannelCriterion', 0.8, ...
+    'LineNoiseCriterion', 4, ...
+    'Highpass', 'off', ...
+    'BurstCriterion', 20, ...
+    'WindowCriterion', 'off', ...
+    'BurstRejection', 'off', ...
+    'Distance', 'Euclidian');
+
+% Creating a field in the EEG struct to store bad channels
+new_labels = {EEG.chanlocs.labels};
+org_labels = {originalEEG.chanlocs.labels};
+[~,ia,~] = intersect(org_labels, new_labels, 'stable');
+removed_channels = org_labels;
+removed_channels(ia) = [];
+EEG.bad_channels = removed_channels;
 
 %% 9. Interpolating
-    
+
 % spherical spline interpolation
 EEG = pop_interp(EEG, originalEEG.chanlocs);
 
@@ -145,6 +145,32 @@ else
     EEG = pop_reref(EEG, []);
     EEG = pop_select(EEG, 'nochannel', {'initialReference'});
 end
+
+%% 11. Independent Component Analysis
+curr_rank = rank(EEG.data);
+EEG = pop_runica(EEG, 'icatype', 'runica', 'extended',1,'pca',curr_rank);
+
+%% 12. Classify ICs with ICLabel
+EEG = pop_iclabel(EEG, 'default');
+
+%% 13. Flag ICs classified as artifacts
+
+%Artifact Probability Thresholds
+thresh_artifacts = [
+    NaN, NaN; % Brain
+    0.8, 1.0; % Muscle
+    0.8, 1.0; % Eye
+    0.8, 1.0; % Heart
+    0.8, 1.0; % Line Noise
+    0.8, 1.0; % Channel Noise
+    NaN, NaN]; % Other
+
+%Flag artifacts
+EEG = pop_icflag(EEG, thresh_artifacts);
+
+%% 14. Remove flagged ICs
+
+EEG = pop_subcomp(EEG, find(EEG.reject.gcompreject));
 
 % -----------------------------------------------------------------------
 
