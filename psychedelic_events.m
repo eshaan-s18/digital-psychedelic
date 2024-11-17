@@ -9,7 +9,7 @@ clc
 
 %% Loading Dataset
 folder = 'digital_psychedelic';
-fp = fullfile('data', '2305_dmn_1372_condition.xdf');
+fp = fullfile('data', '2301_dmn_1368_condition.xdf');
 
 [~, name, ext] = fileparts(fp);
 filename = name;
